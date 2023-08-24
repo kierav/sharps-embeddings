@@ -2,6 +2,7 @@ import glob
 import h5py
 import os
 import pandas as pd
+import argparse
 from astropy.io import fits
 from sunpy.map import Map
 
@@ -25,6 +26,9 @@ class Indexer():
     def __init__(self,sharps_dir:str,save_dir:str,out_file:str):
         self.sharps_dir = sharps_dir
         self.save_dir = save_dir
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
         self.out_file = out_file
         self.sharps = os.listdir(sharps_dir)
 
@@ -37,10 +41,22 @@ class Indexer():
 
     def index_all(self):
         """
-        Index all sharps in directory
+        Index all sharps in directory and create pandas dataframe index
         """
         for sharp in self.sharps:
             self.index_sharp(sharp)
+
+        self.index_df = pd.DataFrame(self.index)
+        sample_time = self.index_df['t_obs'].str.rstrip('_TAI')
+        sample_time = pd.to_datetime(sample_time,format='%Y.%m.%d_%H:%M:%S.%f')
+        self.index_df.insert(1,'sample_time',sample_time)
+
+    def clean_index(self):
+        """
+        Remove all samples with bad quality flags from index
+        """
+        bad_samples = self.index_df['quality']>65536
+        self.index_df = self.index_df[~bad_samples]
 
     def save_index(self,out_file:str=None):
         """
@@ -51,11 +67,8 @@ class Indexer():
         """
         if out_file == None:
             out_file = self.out_file
-        index = pd.DataFrame(self.index)
-        sample_time = index['t_obs'].str.rstrip('_TAI')
-        sample_time = pd.to_datetime(sample_time,format='%Y.%m.%d_%H:%M:%S.%f')
-        index.insert(1,'sample_time',sample_time)
-        index.to_csv(out_file,index=False)
+
+        self.index_df.to_csv(out_file,index=False)
     
     def index_sharp(self,sharp):
         """
@@ -126,4 +139,43 @@ class Indexer():
             except Exception as e:
                 print('Adding None for ',key,'for',file)
                 self.index[key].append(None)
+
+
+
+def parse_args(args=None):
+    """
+    Parses command line arguments to script. Sets up argument for which 
+    dataset to index.
+
+    Parameters:
+        args (list):    defaults to parsing any command line arguments
     
+    Returns:
+        parser args:    Namespace from argparse
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d','--dir',
+                        type=str,
+                        default='data',
+                        help='sharps directory to index'
+                        )
+    parser.add_argument('-s','--savedir',
+                        type=str,
+                        default='data/hdf5',
+                        help='directory to save stacked hdf5 files'
+                        )
+    parser.add_argument('-i','--outfile',
+                        type=str,
+                        default='data/index.csv',
+                        help='path to save index file'
+                        )
+    return parser.parse_args(args)
+
+
+def main():
+    parser = parse_args()
+    
+    indexer = Indexer(parser.dir,parser.savedir,parser.outfile)
+    indexer.index_all()
+    indexer.clean_index()
+    indexer.save_index()
