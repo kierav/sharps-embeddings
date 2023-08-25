@@ -22,15 +22,30 @@ META_KEYS_TO_KEEP = ['naxis1','naxis2','t_obs','t_rec','origin','date','telescop
 class Indexer():
     """
     Indexes SHARPs fits files, saving header to csv and cleaning bad quality files
+
+    Parameters:
+        sharps_dir (str):       path to sharps files
+        save_dir (str):         path to save new files at
+        out_file (str):         path to save index at
+        start (int, optional):  sharp number to start indexing at
+        end (int, optional):    sharp number to end indexing at
     """
-    def __init__(self,sharps_dir:str,save_dir:str,out_file:str):
+    def __init__(self,sharps_dir:str,save_dir:str,out_file:str,
+                 start:int=None,end:int=None):
         self.sharps_dir = sharps_dir
         self.save_dir = save_dir
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
         self.out_file = out_file
+
+        # find sharps in dir and filter
         self.sharps = os.listdir(sharps_dir)
+        self.sharps = sorted([int(sharp.lstrip('sharp_')) for sharp in self.sharps])
+        if not start == None:
+            self.sharps = self.sharps[self.sharps>=start]
+        if not end == None:
+            self.sharps = self.sharps[self.sharps<end]
 
         self.index = {}
         self.index['file'] = []
@@ -44,7 +59,8 @@ class Indexer():
         Index all sharps in directory and create pandas dataframe index
         """
         for sharp in self.sharps:
-            self.index_sharp(sharp)
+            sharp_dir = 'sharp_'+str(sharp)
+            self.index_sharp(sharp_dir)
 
         self.index_df = pd.DataFrame(self.index)
         sample_time = self.index_df['t_obs'].str.rstrip('_TAI')
