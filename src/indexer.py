@@ -185,13 +185,23 @@ def parse_args(args=None):
                         default='data/index.csv',
                         help='path to save index file'
                         )
+    parser.add_argument('--start',
+                    type=int,
+                    default=0,
+                    help='sharp to start indexing at'
+                    )
+    parser.add_argument('--end',
+                    type=int,
+                    default=10000,
+                    help='sharp to end indexing at'
+                    )
     return parser.parse_args(args)
 
 
 def main():
     parser = parse_args()
     
-    indexer = Indexer(parser.dir,parser.savedir,parser.outfile)
+    indexer = Indexer(parser.dir,parser.savedir,parser.outfile,parser.start,parser.end)
     indexer.index_all()
     indexer.clean_index()
     indexer.save_index()
