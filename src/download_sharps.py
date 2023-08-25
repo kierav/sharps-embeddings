@@ -1,12 +1,7 @@
-"""
-This example shows how to submit a data export request using the 'fits'
-protocol and how to download the requested files. Note that the 'as-is'
-protocol should be used instead of 'fits', if record keywords in the FITS
-headers are not needed, as it greatly reduces the server load.
-"""
 from __future__ import absolute_import, division, print_function
 import os
 import drms
+import pandas as pd
 import sys
 import time
 
@@ -33,15 +28,17 @@ series = 'hmi.sharp_cea_720s'
 #series = 'hmi.Ic_720s'
 harpnum = 4864
 #tsel = '2017.09.07_10:00:00_TAI/12m@12m'
-tsel = '2010.01.01_07:48:00_TAI/3400d@8h'
+tsel = '2010.01.01_07:48:00_TAI/7000d@8h'
 #tsel = '2010.06.01_00:00:00_TAI/2d@1h'
 segments = ['Bp', 'Br', 'Bt','magnetogram']
 #segments = ['Br']
 print("Starting the download ...")
 #segments = ['magnetogram']
 #segments = ['image']
+harpnums = pd.read_csv('sharps_with_noaa_ars.csv')['HARPNUM']
+harpnums = harpnums[(harpnums>=int(sys.argv[1]))&(harpnums<=int(sys.argv[2]))]
 
-for harpnum in range(int(sys.argv[1]),int(sys.argv[2])):
+for harpnum in harpnums:
     print("Downloading sharp", harpnum)
 
 
