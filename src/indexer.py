@@ -1,6 +1,7 @@
 import glob
 import h5py
 import os
+import numpy as np
 import pandas as pd
 import argparse
 from astropy.io import fits
@@ -42,10 +43,12 @@ class Indexer():
         # find sharps in dir and filter
         self.sharps = os.listdir(sharps_dir)
         self.sharps = sorted([int(sharp.lstrip('sharp_')) for sharp in self.sharps])
+        self.sharps = np.array(self.sharps)
         if not start == None:
             self.sharps = self.sharps[self.sharps>=start]
         if not end == None:
             self.sharps = self.sharps[self.sharps<end]
+        print(len(self.sharps),'sharps to index')
 
         self.index = {}
         self.index['file'] = []
@@ -107,7 +110,7 @@ class Indexer():
             try:
                 self.create_img_stack([Br_file,Bp_file,Bt_file,Blos_file],
                                       new_file)
-            except ValueError:
+            except FileNotFoundError:
                 continue
 
             self.index['file'].append(new_file)
@@ -134,8 +137,8 @@ class Indexer():
                 with fits.open(file,cache=False) as data_fits:
                     data_fits.verify('fix')
                     img = data_fits[1].data
-            except ValueError:
-                raise ValueError
+            except (ValueError,FileNotFoundError) as e:
+                raise FileNotFoundError
             img_stack.append(img)
 
         with h5py.File(new_file,'w') as h5:
@@ -205,3 +208,6 @@ def main():
     indexer.index_all()
     indexer.clean_index()
     indexer.save_index()
+
+if __name__ == '__main__':
+    main()
