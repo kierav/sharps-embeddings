@@ -8,15 +8,15 @@ from astropy.io import fits
 from sunpy.map import Map
 
 META_KEYS_TO_KEEP = ['naxis1','naxis2','t_obs','t_rec','origin','date','telescop','instrume',
-                     'usflux','meangam','meangbt','meangbz','meangbh','meanjzd','totusjz',
-                     'meanalp','absnjzh','savncpp','meanpot','totpot','meanshr','shrgt45',
-                     'r_value','ctype1','ctype2','crpix1','crpix2','crval1','crval2','cdelt1',
-                     'cdelt2','imcrpix1','imcrpix2','dsun_obs','dsun_ref','rsun_ref',
-                     'crln_obs','crlt_obs','car_rot','obs_vr','obs_vw','obs_vn',
-                     'rsun_obs','quality','harpnum','latdtmin','londtmin','latdtmax',
+                     'usflux','meangam','meangbt','meangbz','meangbh','meanjzd','meanjzh',
+                     'totusjz','totusjh','meanalp','absnjzh','savncpp','meanpot','totpot',
+                     'meanshr','shrgt45','r_value','ctype1','ctype2','crpix1','crpix2',
+                     'crval1','crval2','cdelt1','cdelt2','imcrpix1','imcrpix2','dsun_obs',
+                     'dsun_ref','rsun_ref','crln_obs','crlt_obs','car_rot','obs_vr','obs_vw',
+                     'obs_vn','rsun_obs','quality','harpnum','latdtmin','londtmin','latdtmax',
                      'londtmax','omega_dt','size','area','nacr','size_acr','area_acr',
                      'mtot','mnet','mpos_tot','mneg_tot','mmean','mstdev','mskew',
-                     'mkurt','lat_min','lon_min', 'lat_max','lon_max','noaa_ar',
+                     'mkurt','lat_min','lon_min', 'lat_max','lon_max','lon_fwt','lat_fwt','noaa_ar',
                      'noaa_ars','usfluxl','meangbl','missvals','datamin','datamax',
                      'datamedn','datamean']
 
