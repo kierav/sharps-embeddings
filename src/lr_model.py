@@ -3,7 +3,7 @@ from sklearn.calibration import CalibrationDisplay
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler,MaxAbsScaler
 from sklearn.metrics import average_precision_score,roc_auc_score
-from utils import split_data
+from utils import split_data,print_metrics,plot_performance
 from datetime import datetime, timedelta
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,19 +50,32 @@ class LinearModel():
 if __name__ == "__main__":
     data_file = 'data/index_sharps.csv'
     window = 24
+    flare_thresh = 1e-5
     print('Window: ',window,'h')
+
     feats = ['lat_fwt','lon_fwt','area_acr','usflux','meangam','meangbt','meangbz','meangbh',
          'meanjzd','totusjz','meanalp','meanjzh','totusjh','absnjzh','savncpp','meanpot',
          'totpot','meanshr','shrgt45','r_value']    # SHARPs parameters
 
+    df_ensemble = pd.DataFrame()
+
     for val_split in range(5):
-        model = LinearModel(data_file=data_file,window=window,val_split=val_split,features=feats,max_iter=200)
+        model = LinearModel(data_file=data_file,window=window,flare_thresh=flare_thresh,
+                            val_split=val_split,features=feats,max_iter=200)
         model.prepare_data()
         model.setup()
         model.train()
         ypred = model.test(model.X_pseudotest,model.df_pseudotest['flare'])
         y = model.df_pseudotest['flare']
-        print('MSE:',(sum((ypred-y)**2))/len(ypred),
-            'BSS:',(sum((ypred-y)**2)-sum((sum(y)/len(y)-y)**2))/(-sum((sum(y)/len(y)-y)**2)),
-            'APS:',average_precision_score(y,ypred),
-            'Gini:',2*roc_auc_score(y,ypred)-1)
+
+        if len(df_ensemble) == 0:
+            df_ensemble['ytrue'] = y
+        df_ensemble['ypred'+str(val_split)] = ypred
+
+        print_metrics(ypred,y,True)
+        
+    df_ensemble['ypred_median'] = df_ensemble.filter(regex='ypred[0-9]').median(axis=1)
+    print_metrics(df_ensemble['ypred_median'],df_ensemble['ytrue'],True)
+
+    plot_performance(df_ensemble,cal='ypred')
+    plt.savefig('24h_Mflare_lr_performance.png')

@@ -163,3 +163,4 @@ cython_debug/
 *.fits
 *.csv
 *.h5
+*.png
