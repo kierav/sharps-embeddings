@@ -3,6 +3,7 @@
 from datetime import datetime,timedelta
 import numpy as np
 import pandas as pd
+import random
 
 
 def split_data(df,val_split,test=''):
@@ -58,3 +59,39 @@ def split_data(df,val_split,test=''):
     df_train = df_train.drop(df_val.index)
 
     return df_test,df_pseudotest,df_train,df_val
+
+def diverse_sampler(self, filenames, features, n):
+    """
+    Parameters:
+        filenames(list): filename
+        features (list): embedded data
+        n (int): number of points to sample from the embedding space
+
+    Returns:
+
+        result (list): list of n points sampled from the embedding space
+
+    Ref:
+        https://arxiv.org/pdf/2107.03227.pdf
+
+    """
+    filenames_ = filenames.copy()
+    features_ = features.copy()
+    result = [random.choice(features_)]
+    filenames_results = [random.choice(filenames_)]
+    distances = [1000000] * len(features_)
+    
+    for _ in range(n):
+        dist = np.sum((features_ - result[-1])**2, axis=1)**0.5
+        for i in range(features_.shape[0]):
+            if distances[i] > dist[i]:
+                distances[i] = dist[i]
+        idx = distances.index(max(distances))
+        result.append(features_[idx])
+        filenames_results.append(filenames_[idx])
+        
+        features_ = np.delete(features_, idx, axis=0)
+        del filenames_[idx]
+        del distances[idx]
+
+    return filenames_results[1:], np.array(result[1:])
