@@ -23,7 +23,7 @@ class SharpsDataset(Dataset):
                 transform:          single or list of torchvision transforms
                 feature_cols (list): names of scalar feature columns
         '''
-        self.name_frame = df.loc[:,'filename']
+        self.name_frame = df.loc[:,'file']
         if feature_cols == None:
             feature_cols = []
         self.features = df.loc[:,feature_cols]
