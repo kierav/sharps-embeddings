@@ -63,8 +63,8 @@ def split_data(df,val_split,test=''):
 def diverse_sampler(self, filenames, features, n):
     """
     Parameters:
-        filenames(list): filename
-        features (list): embedded data
+        filenames(list): filename (SHARPs)
+        features (list): embedded data/SHARP parameters
         n (int): number of points to sample from the embedding space
 
     Returns:
