@@ -14,7 +14,7 @@ class SharpsDataset(Dataset):
         Pytorch dataset for handling magnetogram tile data 
         
     """
-    def __init__(self, df: pd.DataFrame, transform, feature_cols:list=None):
+    def __init__(self, df: pd.DataFrame, transform, feature_cols:list=None, maxval:int=1000):
         '''
             Initializes image files in the dataset
             
@@ -28,6 +28,7 @@ class SharpsDataset(Dataset):
             feature_cols = []
         self.features = df.loc[:,feature_cols]
         self.transform = transform
+        self.maxval = maxval
 
     def __len__(self):
         '''
@@ -58,11 +59,12 @@ class SharpsDataset(Dataset):
         # Normalize magnetogram data
         # clip magnetogram data within max value
         maxval = 1000  # Gauss
-        image[np.where(image>maxval)] = maxval
-        image[np.where(image<-maxval)] = -maxval
+        image[np.where(image>self.maxval)] = self.maxval
+        image[np.where(image<-self.maxval)] = -self.maxval
         # scale between 0 and 1
         image = (image+maxval)/2/maxval
-        image = np.expand_dims(image,0)
+        if image.ndim == 2:
+            image = np.expand_dims(image,axis=0)
 
         image = self.transform(image)    
 
@@ -77,7 +79,8 @@ class SharpsDataModule(pl.LightningDataModule):
     """
 
     def __init__(self,data_file:str,batch:int=128,
-                dim:int=128,val_split:int=0,test:str='',features:list=None):
+                dim:int=128,val_split:int=0,test:str='',
+                features:list=None):
         super().__init__()
         self.data_file = data_file
         self.batch_size = batch
@@ -90,22 +93,17 @@ class SharpsDataModule(pl.LightningDataModule):
         # define data transforms - augmentation for training
         self.training_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=(0.485,),std=(0.229,)),
+            # transforms.Normalize(mean=(0.485,),std=(0.229,)),
             transforms.RandomInvert(p=0.3),
-            transforms.RandomAdjustSharpness(1.5,p=0.3),
-            transforms.RandomApply(torch.nn.ModuleList([
-                 transforms.GaussianBlur(kernel_size=9,sigma=(0.1,4.0)),
-                 ]),p=0.3),
             transforms.RandomApply(torch.nn.ModuleList([
                  transforms.RandomRotation(degrees=45,fill=0.5)
                  ]),p=0.3),
             transforms.RandomVerticalFlip(p=0.3),
-            transforms.ScaleJitter(target_size=(128,128),scale_range=(0.7,1.3),antialias=True),
             transforms.Resize((dim,dim),antialias=True),
         ])
         self.transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=(0.485,),std=(0.229,)),
+            # transforms.Normalize(mean=(0.485,),std=(0.229,)),
             transforms.Resize((dim,dim),antialias=True),
         ])
 
