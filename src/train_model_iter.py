@@ -64,7 +64,7 @@ def main():
     # select initial random subset of training data
     data.prepare_data()
     data.setup(stage='train')
-    subset_files = random.sample(data.df_train['filename'].tolist(),k=int(config.training['train_frac']*len(data.df_train)))
+    subset_files = random.sample(data.df_train['file'].tolist(),k=int(config.training['train_frac']*len(data.df_train)))
     
     # iterate training 
     for i in range(config.training['iterations']):
@@ -77,7 +77,7 @@ def main():
                             log_every_n_steps=50,
                             logger=wandb_logger,
                             deterministic=True,
-                            precision='16-mixed')
+                            precision=16)
         trainer.fit(model=model,train_dataloaders=data.subset_train_dataloader(),val_dataloaders=data.val_dataloader())
 
         # run inference on full training data 

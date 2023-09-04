@@ -123,7 +123,7 @@ class SharpsDataModule(pl.LightningDataModule):
 
     def subsample_trainset(self,filenames):
         # given a list of filenames, subsample so the train set only includes files from that list
-        subset_df = self.df_train[self.df_train['filename'].isin(filenames)]
+        subset_df = self.df_train[self.df_train['file'].isin(filenames)]
         self.subset_train_set = SharpsDataset(subset_df,self.training_transform,self.features)
 
     def subset_train_dataloader(self,shuffle=True):
