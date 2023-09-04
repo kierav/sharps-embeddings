@@ -122,7 +122,7 @@ class SharpEmbedder(pl.LightningModule):
 
     def _get_reconstruction_loss(self, batch):
         """Given a batch of images, this function returns the reconstruction loss (MSE in our case)"""
-        x, _ = batch  # We do not need the labels
+        _,x,_ = batch  # We do not need the labels
         x_hat = self.forward(x)
         loss = F.mse_loss(x, x_hat, reduction="none")
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
@@ -147,6 +147,14 @@ class SharpEmbedder(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         loss = self._get_reconstruction_loss(batch)
         self.log("test_loss", loss)
+    
+    def predict_step(self,batch,batch_idx,dataloader_idx=0):
+        """Given a batch of images, return embeddings from encoder"""
+        f,x,_ = batch
+        embedding = self.encoder(x)
+        return f,embedding
+    
+
 
 if __name__=='__main__':
     data_path = '/d0/kvandersande/sharps_hdf5/'
