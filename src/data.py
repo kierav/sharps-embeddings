@@ -56,15 +56,10 @@ class SharpsDataset(Dataset):
         image = np.array(h5py.File(file,'r')['hmi']).astype(np.float32)
         image = np.nan_to_num(image)
 
-        # Normalize magnetogram data
-        # clip magnetogram data within max value
-        maxval = 1000  # Gauss
-        image[np.where(image>self.maxval)] = self.maxval
-        image[np.where(image<-self.maxval)] = -self.maxval
-        # scale between 0 and 1
-        image = (image+maxval)/2/maxval
-        if image.ndim == 2:
-            image = np.expand_dims(image,axis=0)
+        # Clip and normalize magnetogram data
+        image = (np.clip(image,-self.maxval,self.maxval)/self.maxval+1)/2
+
+        image = image[None,:,:,:]
 
         image = self.transform(image)    
 
