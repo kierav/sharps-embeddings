@@ -1,5 +1,6 @@
 """ Utils functions """
 
+import os
 from datetime import datetime,timedelta
 import numpy as np
 import pandas as pd
@@ -95,3 +96,46 @@ def diverse_sampler(self, filenames, features, n):
         del distances[idx]
 
     return filenames_results[1:], np.array(result[1:])
+
+
+def save_predictions(preds,dir,appendstr:str=''):
+    """
+    Save predicted files and embeddings
+    
+    Parameters:
+        preds:  output of model predict step (as list of batch predictions)
+        dir:    directory for saving
+        appendstr: string to save at end of filename
+    Returns:
+        embeddings (np array):      output of model embed step 
+    """
+    file = []
+    embeddings = []
+    for predbatch in preds:
+        file.extend(predbatch[0])
+        embeddings.extend(np.array(predbatch[1]))
+    embeddings = np.array(embeddings)
+
+    df = pd.DataFrame({'embed'+str(i):embeddings[:,i] for i in range(len(file))})
+    df.insert(0,'filename',file)
+    df.to_csv(dir+os.sep+'embeddings'+appendstr+'.csv',index=False)
+
+    return file, embeddings
+
+
+def load_model(ckpt_path,modelclass,api):
+    """
+    Load model into wandb run by downloading and initializing weights
+
+    Parameters:
+        ckpt_path:  wandb path to download model checkpoint from
+        model:      model class
+        api:        instance of wandb Api
+    Returns:
+        model:      Instantiated model class object with loaded weights
+    """
+    print('Loading model checkpoint from ', ckpt_path)
+    artifact = api.artifact(ckpt_path,type='model')
+    artifact_dir = artifact.download()
+    model = modelclass.load_from_checkpoint(artifact_dir+'/model.ckpt',map_location='cpu')
+    return model
