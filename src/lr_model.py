@@ -33,12 +33,19 @@ class LinearModel():
     def setup(self):
         # split data
         self.df_test,self.df_pseudotest,self.df_train,self.df_val = split_data(self.df,self.val_split)
-        self.scaler.fit(self.df_train[self.features])
-        self.X_train = self.scaler.transform(self.df_train[self.features])
+        self.X_train = self.scaler.fit_transform(self.df_train[self.features])
         self.X_val = self.scaler.transform(self.df_val[self.features])
         self.X_pseudotest = self.scaler.transform(self.df_pseudotest[self.features])
         self.X_test = self.scaler.transform(self.df_test[self.features])
         return
+
+    def subsample_trainset(self,filenames):
+        # given a list of filenames, subsample so the train set only includes files from that list
+        self.df_subset_train = self.df_train[self.df_train['filename'].isin(filenames)]
+        self.X_train = self.scaler.fit_transform(self.df_subset_train[self.features])
+        self.X_val = self.scaler.transform(self.df_val[self.features])
+        self.X_pseudotest = self.scaler.transform(self.df_pseudotest[self.features])
+        self.X_test = self.scaler.transform(self.df_test[self.features])
 
     def train(self):
         self.model.fit(self.X_train,self.df_train[self.label])
@@ -61,7 +68,7 @@ if __name__ == "__main__":
     results = {}
     for val_split in range(5):
         model = LinearModel(data_file=data_file,window=window,flare_thresh=flare_thresh,
-                            val_split=val_split,features=feats,max_iter=200)
+                            val_split=val_split,features=feats,max_iter=200,class_weight='balanced')
         model.prepare_data()
         model.setup()
         model.train()
@@ -78,4 +85,4 @@ if __name__ == "__main__":
     print_metrics(df_results['ypred_median'],df_results['ytrue'])
 
     plot_performance(df_results,cal='ypred')
-    plt.savefig('24h_Mflare_lr_performance.png')
+    plt.savefig('24h_Mflare_lrbalanced_performance.png')
