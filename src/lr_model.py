@@ -64,25 +64,34 @@ if __name__ == "__main__":
     feats = ['lat_fwt','lon_fwt','area_acr','usflux','meangam','meangbt','meangbz','meangbh',
          'meanjzd','totusjz','meanalp','meanjzh','totusjh','absnjzh','savncpp','meanpot',
          'totpot','meanshr','shrgt45','r_value']    # SHARPs parameters
-
-    results = {}
-    for val_split in range(5):
-        model = LinearModel(data_file=data_file,window=window,flare_thresh=flare_thresh,
-                            val_split=val_split,features=feats,max_iter=200,class_weight='balanced')
-        model.prepare_data()
-        model.setup()
-        model.train()
-        ypred = model.test(model.X_pseudotest,model.df_pseudotest['flare'])
-        y = model.df_pseudotest['flare']
-        results['ypred'+str(val_split)] = ypred
-        results['ytrue'] = y
-        print_metrics(ypred,y)
     
-    df_results = pd.DataFrame(results)
-    df_results.insert(0,'filename',model.df_pseudotest['file'])
-    df_results['ypred_median'] = df_results['ypred_median'] = df_results.filter(regex='ypred[0-9]').median(axis=1)
-    print('Ensemble median:')
-    print_metrics(df_results['ypred_median'],df_results['ytrue'])
+    train_fracs = [0.1,0.2,0.33,0.5,1.0]
+   
+    for train_frac in train_fracs:
+        print('Train frac:',train_frac)
+        results = {}
+        for val_split in range(5):
+            model = LinearModel(data_file=data_file,window=window,flare_thresh=flare_thresh,
+                                val_split=val_split,features=feats,max_iter=200)
+            model.prepare_data()
+            model.setup()
+            if train_frac != 1:
+                subsample_files,_ = diverse_sampler(model.df_train['file'],
+                                                    model.df_train[feats],
+                                                    n=int(train_frac*len(model.df_train)))
+                model.subsample_trainset(subsample_files)
+            model.train()
+            ypred = model.test(model.X_pseudotest,model.df_pseudotest['flare'])
+            y = model.df_pseudotest['flare']
+            results['ypred'+str(val_split)] = ypred
+            results['ytrue'] = y
+            print_metrics(ypred,y)
+        
+        df_results = pd.DataFrame(results)
+        df_results.insert(0,'filename',model.df_pseudotest['file'])
+        df_results['ypred_median'] = df_results['ypred_median'] = df_results.filter(regex='ypred[0-9]').median(axis=1)
+        print('Ensemble median:')
+        print_metrics(df_results['ypred_median'],df_results['ytrue'])
 
-    plot_performance(df_results,cal='ypred')
-    plt.savefig('24h_Mflare_lrbalanced_performance.png')
+        plot_performance(df_results,cal='ypred')
+        plt.savefig('24h_Mflare_lr_frac'+str(train_frac)+'_performance.png')
