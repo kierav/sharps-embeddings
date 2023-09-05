@@ -59,8 +59,7 @@ class SharpsDataset(Dataset):
         # Clip and normalize magnetogram data
         image = (np.clip(image,-self.maxval,self.maxval)/self.maxval+1)/2
 
-        image = image[None,:,:,:]
-
+        image = np.transpose(image,(1,2,0))
         image = self.transform(image)    
 
         features = torch.Tensor(self.features.iloc[idx])
