@@ -67,7 +67,7 @@ def main():
     data.setup(stage='train')
     subset_files,_ = diverse_sampler(data.df_train['file'].tolist(),
                                      data.df_train[config.data['features']].to_numpy(),
-                                     n=int(config.training['train_frac']*len(files_train)))
+                                     n=int(config.training['train_frac']*len(data.df_train)))
 
     # iterate training 
     for i in range(config.training['iterations']):
