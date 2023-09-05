@@ -82,7 +82,7 @@ def main():
         trainer.fit(model=model,train_dataloaders=data.subset_train_dataloader(),val_dataloaders=data.val_dataloader())
 
         # run inference on full training data 
-        preds_train = trainer.predict(dataloaders=data.train_dataloader(shuffle=False))
+        preds_train = trainer.predict(ckpt_path='best',dataloaders=data.train_dataloader(shuffle=False))
         files_train, embeddings_train = save_predictions(preds_train,savedir,'train')
         
         # select diverse subset based on embedding pca unless on last iteration
@@ -94,13 +94,13 @@ def main():
         subset_files,_ = diverse_sampler(files_train,embeddings_pca,n=int(config.training['train_frac']*len(files_train)),ksplits=5)
 
     # save predictions for validation
-    preds_val = trainer.predict(model=model,dataloaders=data.val_dataloader())
+    preds_val = trainer.predict(ckpt_path='best',model=model,dataloaders=data.val_dataloader())
     files_val, embeddings_val = save_predictions(preds_val,savedir,'val')
 
-    preds_pseudotest = trainer.predict(model=model,dataloaders=data.pseudotest_dataloader())
+    preds_pseudotest = trainer.predict(ckpt_path='best',model=model,dataloaders=data.pseudotest_dataloader())
     files_pt, embeddings_pt = save_predictions(preds_pseudotest,savedir,'pseudotest')
 
-    preds_test = trainer.predict(model=model,dataloaders=data.test_dataloader())
+    preds_test = trainer.predict(ckpt_path='best',model=model,dataloaders=data.test_dataloader())
     files_test, embeddings_test = save_predictions(preds_test,savedir,'test')
 
     wandb.finish()
