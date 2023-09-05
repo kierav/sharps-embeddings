@@ -116,7 +116,7 @@ def save_predictions(preds,dir,appendstr:str=''):
         embeddings.extend(np.array(predbatch[1]))
     embeddings = np.array(embeddings)
 
-    df = pd.DataFrame({'embed'+str(i):embeddings[:,i] for i in range(len(file))})
+    df = pd.DataFrame({'embed'+str(i):embeddings[:,i] for i in range(np.shape(embeddings)[1])})
     df.insert(0,'filename',file)
     df.to_csv(dir+os.sep+'embeddings'+appendstr+'.csv',index=False)
 
