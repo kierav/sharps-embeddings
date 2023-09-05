@@ -65,8 +65,10 @@ def main():
     # select initial random subset of training data
     data.prepare_data()
     data.setup(stage='train')
-    subset_files = random.sample(data.df_train['file'].tolist(),k=int(config.training['train_frac']*len(data.df_train)))
-    
+    subset_files,_ = diverse_sampler(data.df_train['file'].tolist(),
+                                     data.df_train[config.data['features']].to_numpy(),
+                                     n=int(config.training['train_frac']*len(files_train)))
+
     # iterate training 
     for i in range(config.training['iterations']):
         # create training dataset from desired files
@@ -91,14 +93,11 @@ def main():
 
         pca = PCA(n_components=6,random_state=42)
         embeddings_pca = pca.fit_transform(embeddings_train)
-        subset_files,_ = diverse_sampler(files_train,embeddings_pca,n=int(config.training['train_frac']*len(files_train)),ksplits=5)
+        subset_files,_ = diverse_sampler(files_train,embeddings_pca,n=int(config.training['train_frac']*len(files_train)))
 
-    # save predictions for validation
+
     preds_val = trainer.predict(ckpt_path='best',model=model,dataloaders=data.val_dataloader())
     files_val, embeddings_val = save_predictions(preds_val,savedir,'val')
-
-    preds_pseudotest = trainer.predict(ckpt_path='best',model=model,dataloaders=data.pseudotest_dataloader())
-    files_pt, embeddings_pt = save_predictions(preds_pseudotest,savedir,'pseudotest')
 
     preds_test = trainer.predict(ckpt_path='best',model=model,dataloaders=data.test_dataloader())
     files_test, embeddings_test = save_predictions(preds_test,savedir,'test')

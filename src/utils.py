@@ -61,7 +61,7 @@ def split_data(df,val_split,test=''):
 
     return df_test,df_pseudotest,df_train,df_val
 
-def diverse_sampler(self, filenames, features, n):
+def diverse_sampler(filenames, features, n):
     """
     Parameters:
         filenames(list): filename (SHARPs)
