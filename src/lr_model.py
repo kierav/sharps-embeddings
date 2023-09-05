@@ -28,6 +28,7 @@ class LinearModel():
         self.df['sample_time'] = pd.to_datetime(self.df['sample_time'])
         self.df['flare'] = (self.df['flare_intensity_in_'+str(self.window)+'h']>=self.flare_thresh).astype(int)
         self.df.dropna(axis=0,subset=self.features,inplace=True)
+        self.p_thresh = 0.5
 
     def setup(self):
         # split data
@@ -57,8 +58,7 @@ if __name__ == "__main__":
          'meanjzd','totusjz','meanalp','meanjzh','totusjh','absnjzh','savncpp','meanpot',
          'totpot','meanshr','shrgt45','r_value']    # SHARPs parameters
 
-    df_ensemble = pd.DataFrame()
-
+    results = {}
     for val_split in range(5):
         model = LinearModel(data_file=data_file,window=window,flare_thresh=flare_thresh,
                             val_split=val_split,features=feats,max_iter=200)
@@ -67,15 +67,15 @@ if __name__ == "__main__":
         model.train()
         ypred = model.test(model.X_pseudotest,model.df_pseudotest['flare'])
         y = model.df_pseudotest['flare']
+        results['ypred'+str(val_split)] = ypred
+        results['ytrue'] = y
+        print_metrics(ypred,y)
+    
+    df_results = pd.DataFrame(results)
+    df_results.insert(0,'filename',model.df_pseudotest['file'])
+    df_results['ypred_median'] = df_results['ypred_median'] = df_results.filter(regex='ypred[0-9]').median(axis=1)
+    print('Ensemble median:')
+    print_metrics(df_results['ypred_median'],df_results['ytrue'])
 
-        if len(df_ensemble) == 0:
-            df_ensemble['ytrue'] = y
-        df_ensemble['ypred'+str(val_split)] = ypred
-
-        print_metrics(ypred,y,True)
-        
-    df_ensemble['ypred_median'] = df_ensemble.filter(regex='ypred[0-9]').median(axis=1)
-    print_metrics(df_ensemble['ypred_median'],df_ensemble['ytrue'],True)
-
-    plot_performance(df_ensemble,cal='ypred')
+    plot_performance(df_results,cal='ypred')
     plt.savefig('24h_Mflare_lr_performance.png')

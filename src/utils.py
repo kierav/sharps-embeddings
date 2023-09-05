@@ -73,41 +73,6 @@ def split_data(df,val_split,test=''):
 
     return df_test,df_pseudotest,df_train,df_val
 
-def print_metrics(ypred,y,printresults=False):
-    """
-    Calculate metrics based on predictions. If there are no postive true
-    labels, then will return NaNs
-    
-    Parameters:
-        ypred (np array):       array of predicted probabilities
-        ytrue (np array):       corresponding true outputs (1 - event, 0 - no event)
-        printresults (bool):    flag to print out results or 
-    
-    Returns:
-        results (list):         calculated metrics (MSE, BSS, APS, Gini, ECE, MCE, 
-                                std, max output)
-    """
-
-    mse = (sum((ypred-y)**2))/len(ypred)
-    std = np.std(ypred)
-    max_output = np.max(ypred)
-
-    if sum(y) == 0: # no positive data, return null results
-        print('No positive events in dataset, returning NaNs for some results')
-        bss = aps = gini = ece = mce = np.NaN
-    else:
-        bss = (sum((ypred-y)**2)-sum((sum(y)/len(y)-y)**2))/(-sum((sum(y)/len(y)-y)**2))
-        aps = average_precision_score(y,ypred)
-        gini = 2*roc_auc_score(y,ypred)-1
-        ece,mce = reliability_diag(y,ypred,None,None,plot=False)
-    
-    results = [mse,bss,aps,gini,ece,mce,std,max_output]
-    if printresults:
-        print(f'MSE:{mse:0.3f}, BSS:{bss:0.3f}, APS:{aps:0.3f}, Gini:{gini:0.3f}',
-              f'ECE:{ece:0.3f}, MCE:{mce:0.3f}, std:{std:0.3f}, max output:{max_output:0.3f}')
- 
-    return results
-
 def reliability_diag(ytrue,ypred,ax,label,nbins=10,plot=True,plot_hist=False,**kwargs):
     """
     Plots a reliability diagram (calibration curve) on a given axis and computes
@@ -196,3 +161,40 @@ def plot_performance(df,cal='yprob',nbins=5):
     ax[2].set_xlim([-0.05,1.05])
 
     plt.tight_layout()
+
+def print_metrics(ypred,y,thresh:float=0.5,print_results:bool=True):
+    """
+    Print metrics for probabilistic forecasting
+
+    Parameters:
+        ypred       predicted probabilities
+        y           true outcomes (0 or 1)
+        thresh      threshold value for calculating binary metrics (between 0 and 1)
+    
+    Returns:
+        metrics     list of metrics (MSE,BSS,APS,Gini,TSS,HSS,TPR,FPR)
+    """
+
+    # probabilistic metrics
+    mse = (sum((ypred-y)**2))/len(ypred)
+    bss = (sum((ypred-y)**2)-sum((sum(y)/len(y)-y)**2))/(-sum((sum(y)/len(y)-y)**2))
+    aps = average_precision_score(y,ypred)
+    gini = 2*roc_auc_score(y,ypred)-1
+
+    # binary metrics
+    ypred_binary = ypred>=thresh
+    C = confusion_matrix(y,ypred_binary)
+    tp = C[1,1]
+    tn = C[0,0]
+    fp = C[0,1]
+    fn = C[1,0]
+    tss = (tp) / (tp + fn) - (fp) / (fp + tn)
+    hss = 2*(tp*tn-fp*fn)/((tp+fp)*(fp+tn)+(tp+fn)*(fn+tn))
+    tpr = tp/(tp+fn)
+    fpr = fp/(fp+tn)
+
+    if print_results:
+        print(f'MSE:{mse:0.3f}, BSS:{bss:0.3f}, APS:{aps:0.3f}, Gini:{gini:0.3f}',
+          f'TSS:{tss:0.3f}, HSS:{hss:0.3f}, TPR:{tpr:0.3f}, FPR:{fpr:0.3f}')
+    
+    return [mse,bss,aps,gini,tss,hss,tpr,fpr]
