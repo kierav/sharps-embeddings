@@ -1,0 +1,46 @@
+data:
+  data_file: /d0/kvandersande/index_sharps.csv
+  dim: 128
+  val_split: 0
+  features:  
+    - 'lat_fwt'
+    - 'lon_fwt'
+    - 'area_acr'
+    - 'usflux'
+    - 'meangam'
+    - 'meangbt'
+    - 'meangbz'
+    - 'meangbh'
+    - 'meanjzd'
+    - 'totusjz'
+    - 'meanalp'
+    - 'meanjzh'
+    - 'totusjh'
+    - 'absnjzh'
+    - 'savncpp'
+    - 'meanpot'
+    - 'totpot'
+    - 'meanshr'
+    - 'shrgt45'
+    - 'r_value'   # SHARPs parameters
+  test: ''
+  maxval: 1000  
+meta:
+  user: kierav
+  project: sharps-embeddings
+  resume: false
+  tags: []
+  id: None
+  name: first-test
+  group: diverse-sampling
+model:
+  base_channel_size: 16
+  channels: 4
+  checkpoint_location: None
+  load_checkpoint: false
+  latent_dim: 20
+training:
+  batch_size: 256
+  epochs: 10
+  iterations: 3
+  train_frac: 0.3

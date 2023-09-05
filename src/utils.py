@@ -1,9 +1,11 @@
 """ Utils functions """
 
+import os
 from datetime import datetime,timedelta
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import random
 import seaborn as sns
 from sklearn.metrics import average_precision_score,roc_auc_score,roc_curve,confusion_matrix,precision_recall_curve,r2_score
 from sklearn.calibration import calibration_curve
@@ -72,6 +74,85 @@ def split_data(df,val_split,test=''):
     df_train = df_train.drop(df_val.index)
 
     return df_test,df_pseudotest,df_train,df_val
+
+def diverse_sampler(filenames, features, n):
+    """
+    Parameters:
+        filenames(list): filename (SHARPs)
+        features (list): embedded data/SHARP parameters
+        n (int): number of points to sample from the embedding space
+
+    Returns:
+
+        result (list): list of n points sampled from the embedding space
+
+    Ref:
+        https://arxiv.org/pdf/2107.03227.pdf
+
+    """
+    filenames_ = filenames.copy()
+    features_ = features.copy()
+    result = [random.choice(features_)]
+    filenames_results = [random.choice(filenames_)]
+    distances = [1000000] * len(features_)
+    
+    for _ in range(n):
+        dist = np.sum((features_ - result[-1])**2, axis=1)**0.5
+        for i in range(features_.shape[0]):
+            if distances[i] > dist[i]:
+                distances[i] = dist[i]
+        idx = distances.index(max(distances))
+        result.append(features_[idx])
+        filenames_results.append(filenames_[idx])
+        
+        features_ = np.delete(features_, idx, axis=0)
+        del filenames_[idx]
+        del distances[idx]
+
+    return filenames_results[1:], np.array(result[1:])
+
+
+def save_predictions(preds,dir,appendstr:str=''):
+    """
+    Save predicted files and embeddings
+    
+    Parameters:
+        preds:  output of model predict step (as list of batch predictions)
+        dir:    directory for saving
+        appendstr: string to save at end of filename
+    Returns:
+        embeddings (np array):      output of model embed step 
+    """
+    file = []
+    embeddings = []
+    for predbatch in preds:
+        file.extend(predbatch[0])
+        embeddings.extend(np.array(predbatch[1]))
+    embeddings = np.array(embeddings)
+
+    df = pd.DataFrame({'embed'+str(i):embeddings[:,i] for i in range(np.shape(embeddings)[1])})
+    df.insert(0,'filename',file)
+    df.to_csv(dir+os.sep+'embeddings'+appendstr+'.csv',index=False)
+
+    return file, embeddings
+
+
+def load_model(ckpt_path,modelclass,api):
+    """
+    Load model into wandb run by downloading and initializing weights
+
+    Parameters:
+        ckpt_path:  wandb path to download model checkpoint from
+        model:      model class
+        api:        instance of wandb Api
+    Returns:
+        model:      Instantiated model class object with loaded weights
+    """
+    print('Loading model checkpoint from ', ckpt_path)
+    artifact = api.artifact(ckpt_path,type='model')
+    artifact_dir = artifact.download()
+    model = modelclass.load_from_checkpoint(artifact_dir+'/model.ckpt',map_location='cpu')
+    return model
 
 def reliability_diag(ytrue,ypred,ax,label,nbins=10,plot=True,plot_hist=False,**kwargs):
     """
