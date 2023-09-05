@@ -48,7 +48,8 @@ def main():
                            dim=config.data['dim'],
                            val_split=config.data['val_split'],
                            test=config.data['test'],
-                           features=config.data['features'])
+                           features=config.data['features'],
+                           maxval=config.data['maxval'])
 
     # initialize model
     model = SharpEmbedder(config.model['base_channel_size'],

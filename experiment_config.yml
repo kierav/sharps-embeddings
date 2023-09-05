@@ -4,6 +4,7 @@ data:
   val_split: 0
   features: []
   test: ''
+  maxval: 1000  
 meta:
   user: kierav
   project: sharps-embeddings
