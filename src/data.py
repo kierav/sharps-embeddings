@@ -108,16 +108,15 @@ class SharpsDataModule(pl.LightningDataModule):
 
         
     def setup(self,stage:str):
-        # split into training and validation
+        # split into training and validation the same as for forecasting
         df_test,df_pseudotest,self.df_train,df_val = split_data(self.df,self.val_split,self.test)
+        # use training+val together and pseudotest as validation
+        self.df_train = pd.concat([self.df_train,df_val])
         self.train_set = SharpsDataset(self.df_train,self.training_transform,self.features,maxval=self.maxval)
-        self.val_set = SharpsDataset(df_val,self.transform,self.features,maxval=self.maxval)
-        self.pseudotest_set = SharpsDataset(df_pseudotest,self.transform,maxval=self.maxval)
+        self.val_set = SharpsDataset(df_pseudotest,self.transform,maxval=self.maxval)
         self.test_set = SharpsDataset(df_test,self.transform,self.features,maxval=self.maxval)
-        self.trainval_set = SharpsDataset(pd.concat([self.df_train,df_val]),self.transform,self.features,maxval=self.maxval)
         print('Train:',len(self.train_set),
               'Valid:',len(self.val_set),
-              'Pseudo-test:',len(self.pseudotest_set),
               'Test:',len(self.test_set))
         
     def subsample_trainset(self,filenames):
@@ -133,9 +132,6 @@ class SharpsDataModule(pl.LightningDataModule):
     
     def val_dataloader(self):
         return DataLoader(self.val_set,batch_size=self.batch_size,num_workers=4,drop_last=True)
-    
-    def pseudotest_dataloader(self):
-        return DataLoader(self.pseudotest_set,batch_size=self.batch_size,num_workers=4)
-    
+
     def test_dataloader(self):
         return DataLoader(self.test_set,batch_size=self.batch_size,num_workers=4)
