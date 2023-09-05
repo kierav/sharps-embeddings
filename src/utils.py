@@ -92,22 +92,20 @@ def diverse_sampler(filenames, features, n):
     """
     filenames_ = filenames.copy()
     features_ = features.copy()
-    result = [random.choice(features_)]
-    filenames_results = [random.choice(filenames_)]
+    result = np.tile(random.choice(features_),(n+1,1))
+    filenames_results = [None]*(n+1)
     distances = [1000000] * len(features_)
-    
-    for _ in range(n):
-        dist = np.sum((features_ - result[-1])**2, axis=1)**0.5
-        for i in range(features_.shape[0]):
-            if distances[i] > dist[i]:
-                distances[i] = dist[i]
-        idx = distances.index(max(distances))
-        result.append(features_[idx])
-        filenames_results.append(filenames_[idx])
+
+    for i in range(n):
+        dist = np.sum((features_ - np.mean(result[-2:],axis=0))**2, axis=1)**0.5
+        distances = np.minimum(distances,dist)
+        idx = np.argmax(distances)
+        result[i+1,:] = features_[idx,:]
+        filenames_results[i+1] = filenames_[idx]
         
         features_ = np.delete(features_, idx, axis=0)
-        del filenames_[idx]
-        del distances[idx]
+        filenames_ = np.delete(filenames_, idx, axis=0)
+        distances = np.delete(distances, idx, axis=0)
 
     return filenames_results[1:], np.array(result[1:])
 

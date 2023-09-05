@@ -3,7 +3,7 @@ from sklearn.calibration import CalibrationDisplay
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler,MaxAbsScaler
 from sklearn.metrics import average_precision_score,roc_auc_score
-from utils import split_data,print_metrics,plot_performance
+from utils import split_data,print_metrics,plot_performance,diverse_sampler
 from datetime import datetime, timedelta
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ class LinearModel():
         self.features = features
         self.label = 'flare'
         self.model = LogisticRegression(class_weight=class_weight,random_state=val_split,**kwargs)
-
+        
     def prepare_data(self):
         # load and prep dataframe
         self.df = pd.read_csv(self.data_file)
@@ -29,11 +29,13 @@ class LinearModel():
         self.df['flare'] = (self.df['flare_intensity_in_'+str(self.window)+'h']>=self.flare_thresh).astype(int)
         self.df.dropna(axis=0,subset=self.features,inplace=True)
         self.p_thresh = 0.5
+        self.df = self.df[self.df['naxis1']<=2000]
 
     def setup(self):
         # split data
         self.df_test,self.df_pseudotest,self.df_train,self.df_val = split_data(self.df,self.val_split)
         self.X_train = self.scaler.fit_transform(self.df_train[self.features])
+        self.y_train = self.df_train[self.label]
         self.X_val = self.scaler.transform(self.df_val[self.features])
         self.X_pseudotest = self.scaler.transform(self.df_pseudotest[self.features])
         self.X_test = self.scaler.transform(self.df_test[self.features])
@@ -41,14 +43,15 @@ class LinearModel():
 
     def subsample_trainset(self,filenames):
         # given a list of filenames, subsample so the train set only includes files from that list
-        self.df_subset_train = self.df_train[self.df_train['filename'].isin(filenames)]
+        self.df_subset_train = self.df_train[self.df_train['file'].isin(filenames)]
         self.X_train = self.scaler.fit_transform(self.df_subset_train[self.features])
+        self.y_train = self.df_subset_train[self.label]
         self.X_val = self.scaler.transform(self.df_val[self.features])
         self.X_pseudotest = self.scaler.transform(self.df_pseudotest[self.features])
         self.X_test = self.scaler.transform(self.df_test[self.features])
 
     def train(self):
-        self.model.fit(self.X_train,self.df_train[self.label])
+        self.model.fit(self.X_train,self.y_train)
 
     def test(self,X,y):
         ypred = self.model.predict_proba(X)
@@ -65,7 +68,7 @@ if __name__ == "__main__":
          'meanjzd','totusjz','meanalp','meanjzh','totusjh','absnjzh','savncpp','meanpot',
          'totpot','meanshr','shrgt45','r_value']    # SHARPs parameters
     
-    train_fracs = [0.1,0.2,0.33,0.5,1.0]
+    train_fracs = [0.1,0.2,0.33,0.5,1]
    
     for train_frac in train_fracs:
         print('Train frac:',train_frac)
@@ -76,8 +79,8 @@ if __name__ == "__main__":
             model.prepare_data()
             model.setup()
             if train_frac != 1:
-                subsample_files,_ = diverse_sampler(model.df_train['file'],
-                                                    model.df_train[feats],
+                subsample_files,_ = diverse_sampler(model.df_train['file'].to_list(),
+                                                    model.X_train,
                                                     n=int(train_frac*len(model.df_train)))
                 model.subsample_trainset(subsample_files)
             model.train()
