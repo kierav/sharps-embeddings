@@ -114,20 +114,24 @@ class SharpsDataModule(pl.LightningDataModule):
         self.pseudotest_set = SharpsDataset(df_pseudotest,self.transform)
         self.test_set = SharpsDataset(df_test,self.transform,self.features)
         self.trainval_set = SharpsDataset(pd.concat([self.df_train,df_val]),self.transform,self.features)
-
+        print('Train:',len(self.train_set),
+              'Valid:',len(self.val_set),
+              'Pseudo-test:',len(self.pseudotest_set),
+              'Test:',len(self.test_set))
+        
     def subsample_trainset(self,filenames):
         # given a list of filenames, subsample so the train set only includes files from that list
         subset_df = self.df_train[self.df_train['file'].isin(filenames)]
         self.subset_train_set = SharpsDataset(subset_df,self.training_transform,self.features)
 
     def subset_train_dataloader(self,shuffle=True):
-        return DataLoader(self.subset_train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle)
+        return DataLoader(self.subset_train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle,drop_last=True)
     
     def train_dataloader(self,shuffle=True):
-        return DataLoader(self.train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle)
+        return DataLoader(self.train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle,drop_last=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val_set,batch_size=self.batch_size,num_workers=4)
+        return DataLoader(self.val_set,batch_size=self.batch_size,num_workers=4,drop_last=True)
     
     def pseudotest_dataloader(self):
         return DataLoader(self.pseudotest_set,batch_size=self.batch_size,num_workers=4)
