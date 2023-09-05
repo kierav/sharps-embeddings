@@ -1,14 +1,15 @@
 import glob
+import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 import numpy as np
 import h5py
 import torch, torchvision
-from PIL import Image
 
 class SHARPdataset(Dataset):
 
     def __init__(self, data_path: str, param: bin=False,
-                 data_stride:int = 1, image_size = 256, datatype=np.float32):
+                 data_stride:int = 1, image_size:int = 256,
+                 datatype=np.float32):
         '''
             Initializes image files in the dataset
             
@@ -55,10 +56,10 @@ class SHARPdataset(Dataset):
         data = (np.clip(data, -5000, 5000)/5000 + 1)/2
         data = data[None, :, :, :]
         data = torch.from_numpy(data.astype(self.datatype))
-        resize = torchvision.transforms.Resize((self.image_size, self.image_size))
+        resize = torchvision.transforms.Resize((self.image_size, self.image_size), antialias=True)
         data = resize(data)
         
         if self.param is True:
             return ('SHARP_PARAMS [idx]', data)
         else:
-            return data
+            return data, self.sharp_images[idx]

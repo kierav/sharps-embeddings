@@ -56,16 +56,10 @@ class SharpsDataset(Dataset):
         image = np.array(h5py.File(file,'r')['hmi']).astype(np.float32)
         image = np.nan_to_num(image)
 
-        # Normalize magnetogram data
-        # clip magnetogram data within max value
-        maxval = 1000  # Gauss
-        image[np.where(image>self.maxval)] = self.maxval
-        image[np.where(image<-self.maxval)] = -self.maxval
-        # scale between 0 and 1
-        image = (image+maxval)/2/maxval
-        if image.ndim == 2:
-            image = np.expand_dims(image,axis=0)
+        # Clip and normalize magnetogram data
+        image = (np.clip(image,-self.maxval,self.maxval)/self.maxval+1)/2
 
+        image = np.transpose(image,(1,2,0))
         image = self.transform(image)    
 
         features = torch.Tensor(self.features.iloc[idx])
@@ -80,7 +74,7 @@ class SharpsDataModule(pl.LightningDataModule):
 
     def __init__(self,data_file:str,batch:int=128,
                 dim:int=128,val_split:int=0,test:str='',
-                features:list=None):
+                features:list=None,maxval:int=1000):
         super().__init__()
         self.data_file = data_file
         self.batch_size = batch
@@ -89,6 +83,7 @@ class SharpsDataModule(pl.LightningDataModule):
         if features == None:
             features = []
         self.features = features
+        self.maxval = maxval
 
         # define data transforms - augmentation for training
         self.training_transform = transforms.Compose([
@@ -113,30 +108,30 @@ class SharpsDataModule(pl.LightningDataModule):
 
         
     def setup(self,stage:str):
-        # split into training and validation
+        # split into training and validation the same as for forecasting
         df_test,df_pseudotest,self.df_train,df_val = split_data(self.df,self.val_split,self.test)
-        self.train_set = SharpsDataset(self.df_train,self.training_transform,self.features)
-        self.val_set = SharpsDataset(df_val,self.transform,self.features)
-        self.pseudotest_set = SharpsDataset(df_pseudotest,self.transform)
-        self.test_set = SharpsDataset(df_test,self.transform,self.features)
-        self.trainval_set = SharpsDataset(pd.concat([self.df_train,df_val]),self.transform,self.features)
-
+        # use training+val together and pseudotest as validation
+        self.df_train = pd.concat([self.df_train,df_val])
+        self.train_set = SharpsDataset(self.df_train,self.training_transform,self.features,maxval=self.maxval)
+        self.val_set = SharpsDataset(df_pseudotest,self.transform,maxval=self.maxval)
+        self.test_set = SharpsDataset(df_test,self.transform,self.features,maxval=self.maxval)
+        print('Train:',len(self.train_set),
+              'Valid:',len(self.val_set),
+              'Test:',len(self.test_set))
+        
     def subsample_trainset(self,filenames):
         # given a list of filenames, subsample so the train set only includes files from that list
-        subset_df = self.df_train[self.df_train['filename'].isin(filenames)]
-        self.subset_train_set = SharpsDataset(subset_df,self.training_transform,self.features)
+        subset_df = self.df_train[self.df_train['file'].isin(filenames)]
+        self.subset_train_set = SharpsDataset(subset_df,self.training_transform,self.features,maxval=self.maxval)
 
     def subset_train_dataloader(self,shuffle=True):
-        return DataLoader(self.subset_train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle)
+        return DataLoader(self.subset_train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle,drop_last=True)
     
     def train_dataloader(self,shuffle=True):
-        return DataLoader(self.train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle)
+        return DataLoader(self.train_set,batch_size=self.batch_size,num_workers=4,shuffle=shuffle,drop_last=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val_set,batch_size=self.batch_size,num_workers=4)
-    
-    def pseudotest_dataloader(self):
-        return DataLoader(self.pseudotest_set,batch_size=self.batch_size,num_workers=4)
-    
+        return DataLoader(self.val_set,batch_size=self.batch_size,num_workers=4,drop_last=True)
+
     def test_dataloader(self):
         return DataLoader(self.test_set,batch_size=self.batch_size,num_workers=4)
