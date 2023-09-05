@@ -3,7 +3,7 @@ from sklearn.calibration import CalibrationDisplay
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler,MaxAbsScaler
 from sklearn.metrics import average_precision_score,roc_auc_score
-from utils import split_data
+from utils import split_data,print_metrics,plot_performance,diverse_sampler
 from datetime import datetime, timedelta
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,26 +21,37 @@ class LinearModel():
         self.features = features
         self.label = 'flare'
         self.model = LogisticRegression(class_weight=class_weight,random_state=val_split,**kwargs)
-
+        
     def prepare_data(self):
         # load and prep dataframe
         self.df = pd.read_csv(self.data_file)
         self.df['sample_time'] = pd.to_datetime(self.df['sample_time'])
         self.df['flare'] = (self.df['flare_intensity_in_'+str(self.window)+'h']>=self.flare_thresh).astype(int)
         self.df.dropna(axis=0,subset=self.features,inplace=True)
+        self.p_thresh = 0.5
+        self.df = self.df[self.df['naxis1']<=2000]
 
     def setup(self):
         # split data
         self.df_test,self.df_pseudotest,self.df_train,self.df_val = split_data(self.df,self.val_split)
-        self.scaler.fit(self.df_train[self.features])
-        self.X_train = self.scaler.transform(self.df_train[self.features])
+        self.X_train = self.scaler.fit_transform(self.df_train[self.features])
+        self.y_train = self.df_train[self.label]
         self.X_val = self.scaler.transform(self.df_val[self.features])
         self.X_pseudotest = self.scaler.transform(self.df_pseudotest[self.features])
         self.X_test = self.scaler.transform(self.df_test[self.features])
         return
 
+    def subsample_trainset(self,filenames):
+        # given a list of filenames, subsample so the train set only includes files from that list
+        self.df_subset_train = self.df_train[self.df_train['file'].isin(filenames)]
+        self.X_train = self.scaler.fit_transform(self.df_subset_train[self.features])
+        self.y_train = self.df_subset_train[self.label]
+        self.X_val = self.scaler.transform(self.df_val[self.features])
+        self.X_pseudotest = self.scaler.transform(self.df_pseudotest[self.features])
+        self.X_test = self.scaler.transform(self.df_test[self.features])
+
     def train(self):
-        self.model.fit(self.X_train,self.df_train[self.label])
+        self.model.fit(self.X_train,self.y_train)
 
     def test(self,X,y):
         ypred = self.model.predict_proba(X)
@@ -50,19 +61,40 @@ class LinearModel():
 if __name__ == "__main__":
     data_file = 'data/index_sharps.csv'
     window = 24
+    flare_thresh = 1e-5
     print('Window: ',window,'h')
+
     feats = ['lat_fwt','lon_fwt','area_acr','usflux','meangam','meangbt','meangbz','meangbh',
          'meanjzd','totusjz','meanalp','meanjzh','totusjh','absnjzh','savncpp','meanpot',
          'totpot','meanshr','shrgt45','r_value']    # SHARPs parameters
+    
+    train_fracs = [0.1,0.2,0.33,0.5,1]
+   
+    for train_frac in train_fracs:
+        print('Train frac:',train_frac)
+        results = {}
+        for val_split in range(5):
+            model = LinearModel(data_file=data_file,window=window,flare_thresh=flare_thresh,
+                                val_split=val_split,features=feats,max_iter=200)
+            model.prepare_data()
+            model.setup()
+            if train_frac != 1:
+                subsample_files,_ = diverse_sampler(model.df_train['file'].to_list(),
+                                                    model.X_train,
+                                                    n=int(train_frac*len(model.df_train)))
+                model.subsample_trainset(subsample_files)
+            model.train()
+            ypred = model.test(model.X_pseudotest,model.df_pseudotest['flare'])
+            y = model.df_pseudotest['flare']
+            results['ypred'+str(val_split)] = ypred
+            results['ytrue'] = y
+            print_metrics(ypred,y)
+        
+        df_results = pd.DataFrame(results)
+        df_results.insert(0,'filename',model.df_pseudotest['file'])
+        df_results['ypred_median'] = df_results['ypred_median'] = df_results.filter(regex='ypred[0-9]').median(axis=1)
+        print('Ensemble median:')
+        print_metrics(df_results['ypred_median'],df_results['ytrue'])
 
-    for val_split in range(5):
-        model = LinearModel(data_file=data_file,window=window,val_split=val_split,features=feats,max_iter=200)
-        model.prepare_data()
-        model.setup()
-        model.train()
-        ypred = model.test(model.X_pseudotest,model.df_pseudotest['flare'])
-        y = model.df_pseudotest['flare']
-        print('MSE:',(sum((ypred-y)**2))/len(ypred),
-            'BSS:',(sum((ypred-y)**2)-sum((sum(y)/len(y)-y)**2))/(-sum((sum(y)/len(y)-y)**2)),
-            'APS:',average_precision_score(y,ypred),
-            'Gini:',2*roc_auc_score(y,ypred)-1)
+        plot_performance(df_results,cal='ypred')
+        plt.savefig('24h_Mflare_lr_frac'+str(train_frac)+'_performance.png')
