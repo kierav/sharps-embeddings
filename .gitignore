@@ -165,3 +165,4 @@ cython_debug/
 *.h5
 *.png
 *.ods
+*.ckpt
