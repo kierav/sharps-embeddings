@@ -14,6 +14,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from tqdm.notebook import tqdm
 from dataset import SHARPdataset
+from utils import plot_reconstruction
 import wandb
 
 # Setting the seed
@@ -110,6 +111,7 @@ class SharpEmbedder(pl.LightningModule):
         wandb_logger: bool = True
     ):
         super().__init__()
+        self.latent_dim = latent_dim
         # Saving hyperparameters of autoencoder
         self.save_hyperparameters()
         # Creating encoder and decoder
@@ -150,12 +152,12 @@ class SharpEmbedder(pl.LightningModule):
         # log sample reconstruction
         if batch_idx == 0 & self.wandb_logger:
             files,x,_ = batch
-            idx = random.randrange(len(x))
+            idx = -1
             x_hat = self.forward(x)
-            fig,ax = plt.subplots(1,2,figsize=(10,4))
-            ax[0].imshow(x[idx,0,:,:].detach().cpu().numpy(),cmap='gray',vmin=0,vmax=1)
-            ax[1].imshow(x_hat[idx,0,:,:].detach().cpu().numpy(),cmap='gray',vmin=0,vmax=1)
-            plt.suptitle(files[idx])
+            fig = plot_reconstruction(x[idx,0,:,:].detach().cpu().numpy(),
+                                      x_hat[idx,0,:,:].detach().cpu().numpy(),
+                                      self.latent_dim,
+                                      files[idx])
             wandb.log({'sample_validation_img':fig})
 
     def test_step(self, batch, batch_idx):

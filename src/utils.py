@@ -279,3 +279,30 @@ def print_metrics(ypred,y,thresh:float=0.5,print_results:bool=True):
           f'TSS:{tss:0.3f}, HSS:{hss:0.3f}, TPR:{tpr:0.3f}, FPR:{fpr:0.3f}')
     
     return [mse,bss,aps,gini,tss,hss,tpr,fpr]
+
+def plot_reconstruction(img,img_out,latent_dim,filename):
+    """
+    Plot a sample image and reconstruction in 4 channels
+
+    Parameters:
+        img (np array):     4xdimxdim
+        img_out (np array): 4xdimxdim
+        latent_dim:         latent dim for title
+        filename:           filename for title
+    
+    Returns:
+        fig handle
+    """
+    fig,ax = plt.subplots(2,4,figsize=(12,6))
+    for j in range(4):
+        ax[0,j].imshow(img[0,j,:,:],cmap='gray',vmin=0,vmax=1)
+        ax[1,j].imshow(img_out[0,j,:,:],cmap='gray',vmin=0,vmax=1)
+    ax[0,0].set_ylabel('Original')
+    ax[1,0].set_ylabel('Reconstruction')
+    ax[0,0].set_title('Br')
+    ax[0,1].set_title('Bp')
+    ax[0,2].set_title('Bt')
+    ax[0,3].set_title('Blos')
+    plt.suptitle('Latent '+str(latent_dim)+ ' - '+filename)
+
+    return fig
