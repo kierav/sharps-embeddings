@@ -9,7 +9,7 @@ class SHARPdataset(Dataset):
 
     def __init__(self, data_path: str, param: bin=False,
                  data_stride:int = 1, image_size:int = 256,
-                 datatype=np.float32):
+                 datatype=np.float32, maxval:int=1000):
         '''
             Initializes image files in the dataset
             
@@ -27,6 +27,7 @@ class SHARPdataset(Dataset):
         self.image_size = image_size
         self.param = param
         self.datatype = datatype
+        self.maxval = maxval
         if self.param is True:
             'read the csv of SHARP params'
 
@@ -53,7 +54,7 @@ class SHARPdataset(Dataset):
         file = h5py.File(self.sharp_images[idx])
         key = list(file.keys())[0]
         data = np.array(file[key])
-        data = (np.clip(data, -5000, 5000)/5000 + 1)/2
+        data = (np.clip(data, -self.maxval, self.maxval)/self.maxval + 1)/2
         data = data[None, :, :, :]
         data = torch.from_numpy(data.astype(self.datatype))
         resize = torchvision.transforms.Resize((self.image_size, self.image_size), antialias=True)
