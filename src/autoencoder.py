@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
+import random
 import seaborn as sns
 import torch
 import torch.nn as nn
@@ -143,6 +144,16 @@ class SharpEmbedder(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         loss = self._get_reconstruction_loss(batch)
         self.log("val_loss", loss)
+        # log sample reconstruction
+        if batch_idx == 0:
+            files,x,_ = batch
+            idx = random.randrange(len(x))
+            x_hat = self.forward(x[idx])
+            fig,ax = plt.subplots(1,2,figsize=(10,4))
+            ax[0].imshow(x[idx,0,:,:],cmap='gray',vmin=0,vmax=1)
+            ax[1].imshow(x_hat[0,0,:,:],cmap='gray',vmin=0,vmax=1)
+            plt.suptitle(files[idx])
+            self.log({'sample_validation_img':fig})
 
     def test_step(self, batch, batch_idx):
         loss = self._get_reconstruction_loss(batch)
