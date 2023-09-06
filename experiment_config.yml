@@ -44,3 +44,8 @@ training:
   epochs: 10
   iterations: 3
   train_frac: 0.3
+flareforecast:
+  window: 24
+  flare_thresh: 1e-5
+  train_frac: 1
+  

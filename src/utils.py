@@ -119,7 +119,9 @@ def save_predictions(preds,dir,appendstr:str=''):
         dir:    directory for saving
         appendstr: string to save at end of filename
     Returns:
-        embeddings (np array):      output of model embed step 
+        file (list):            list of filenames
+        embeddings (list):      output of model embed step 
+        df:                     dataframe including files and embeddings
     """
     file = []
     embeddings = []
@@ -129,10 +131,10 @@ def save_predictions(preds,dir,appendstr:str=''):
     embeddings = np.array(embeddings)
 
     df = pd.DataFrame({'embed'+str(i):embeddings[:,i] for i in range(np.shape(embeddings)[1])})
-    df.insert(0,'filename',file)
+    df.insert(0,'file',file)
     df.to_csv(dir+os.sep+'embeddings'+appendstr+'.csv',index=False)
 
-    return file, embeddings
+    return file, embeddings,df
 
 
 def load_model(ckpt_path,modelclass,api):
