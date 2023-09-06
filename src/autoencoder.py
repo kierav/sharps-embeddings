@@ -14,6 +14,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from tqdm.notebook import tqdm
 from dataset import SHARPdataset
+import wandb
 
 # Setting the seed
 pl.seed_everything(42)
@@ -105,7 +106,8 @@ class SharpEmbedder(pl.LightningModule):
         encoder_class: object = Encoder,
         decoder_class: object = Decoder,
         num_input_channels: int = 3,
-        image_size: int = 256
+        image_size: int = 256,
+        wandb_logger: bool = True
     ):
         super().__init__()
         # Saving hyperparameters of autoencoder
@@ -114,6 +116,7 @@ class SharpEmbedder(pl.LightningModule):
         self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim, image_size=image_size)
         self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim, image_size=image_size)
         # Example input array needed for visualizing the graph of the network
+        self.wandb_logger = wandb_logger
 
     def forward(self, x):
         """The forward function takes in an image and returns the reconstructed image."""
@@ -145,15 +148,15 @@ class SharpEmbedder(pl.LightningModule):
         loss = self._get_reconstruction_loss(batch)
         self.log("val_loss", loss)
         # log sample reconstruction
-        if batch_idx == 0:
+        if batch_idx == 0 & self.wandb_logger:
             files,x,_ = batch
             idx = random.randrange(len(x))
-            x_hat = self.forward(x[idx])
+            x_hat = self.forward(x)
             fig,ax = plt.subplots(1,2,figsize=(10,4))
-            ax[0].imshow(x[idx,0,:,:],cmap='gray',vmin=0,vmax=1)
-            ax[1].imshow(x_hat[0,0,:,:],cmap='gray',vmin=0,vmax=1)
+            ax[0].imshow(x[idx,0,:,:].detach().cpu().numpy(),cmap='gray',vmin=0,vmax=1)
+            ax[1].imshow(x_hat[idx,0,:,:].detach().cpu().numpy(),cmap='gray',vmin=0,vmax=1)
             plt.suptitle(files[idx])
-            self.log({'sample_validation_img':fig})
+            wandb.log({'sample_validation_img':fig})
 
     def test_step(self, batch, batch_idx):
         loss = self._get_reconstruction_loss(batch)
