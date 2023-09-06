@@ -77,7 +77,6 @@ def main():
         trainer = pl.Trainer(accelerator='gpu',
                             devices=1,
                             max_epochs=config.training['epochs'],
-                            log_every_n_steps=50,
                             logger=wandb_logger,
                             deterministic=True,
                             precision=16)
