@@ -46,6 +46,6 @@ training:
   train_frac: 0.1
 flareforecast:
   window: 24
-  flare_thresh: 1e-5
+  flare_thresh: 0.00001
   train_frac: 1
   
