@@ -295,8 +295,8 @@ def plot_reconstruction(img,img_out,latent_dim,filename):
     """
     fig,ax = plt.subplots(2,4,figsize=(12,6))
     for j in range(4):
-        ax[0,j].imshow(img[0,j,:,:],cmap='gray',vmin=0,vmax=1)
-        ax[1,j].imshow(img_out[0,j,:,:],cmap='gray',vmin=0,vmax=1)
+        ax[0,j].imshow(img[j,:,:],cmap='gray',vmin=0,vmax=1)
+        ax[1,j].imshow(img_out[j,:,:],cmap='gray',vmin=0,vmax=1)
     ax[0,0].set_ylabel('Original')
     ax[1,0].set_ylabel('Reconstruction')
     ax[0,0].set_title('Br')

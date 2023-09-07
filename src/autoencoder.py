@@ -158,8 +158,8 @@ class SharpEmbedder(pl.LightningModule):
             files,x,_ = batch
             idx = -1
             x_hat = self.forward(x)
-            fig = plot_reconstruction(x[idx,0,:,:].detach().cpu().numpy(),
-                                      x_hat[idx,0,:,:].detach().cpu().numpy(),
+            fig = plot_reconstruction(x[idx].detach().cpu().numpy(),
+                                      x_hat[idx].detach().cpu().numpy(),
                                       self.latent_dim,
                                       files[idx])
             wandb.log({'sample_validation_img':fig})
