@@ -107,7 +107,7 @@ class SharpsDataModule(pl.LightningDataModule):
     def prepare_data(self):
         self.df = pd.read_csv(self.data_file)
         self.df['sample_time'] = pd.to_datetime(self.df['sample_time'],format='mixed')
-
+        self.df.dropna(subset=self.features,inplace=True)
         
     def setup(self,stage:str):
         # split into training and validation the same as for forecasting
@@ -117,12 +117,12 @@ class SharpsDataModule(pl.LightningDataModule):
         self.df_train = pd.concat([self.df_train,df_val])
 
         # scale features
-        self.df_train[self.features] = self.feat_scaler.fit_transform(self.df_train[self.features])
-        df_pseudotest[self.features] = self.feat_scaler.transform(df_pseudotest[self.features])
-        df_test[self.features] = self.feat_scaler.fit_transform(df_test[self.features])
+        self.df_train.loc[:,self.features] = self.feat_scaler.fit_transform(self.df_train[self.features])
+        df_pseudotest.loc[:,self.features] = self.feat_scaler.transform(df_pseudotest[self.features])
+        df_test.loc[:,self.features] = self.feat_scaler.fit_transform(df_test[self.features])
 
         self.train_set = SharpsDataset(self.df_train,self.training_transform,self.features,maxval=self.maxval)
-        self.val_set = SharpsDataset(df_pseudotest,self.transform,maxval=self.maxval)
+        self.val_set = SharpsDataset(df_pseudotest,self.transform,self.features,maxval=self.maxval)
         self.test_set = SharpsDataset(df_test,self.transform,self.features,maxval=self.maxval)
         print('Train:',len(self.train_set),
               'Valid:',len(self.val_set),

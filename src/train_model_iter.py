@@ -58,7 +58,8 @@ def main():
                           encoder_class = Encoder,
                           decoder_class = Decoder,
                           num_input_channels = 4,
-                          image_size=config.data['dim'])
+                          image_size=config.data['dim'],
+                          loss_type=config.model['loss_type'])
     
     # initialize wandb logger
     wandb_logger = WandbLogger(log_model='all')
