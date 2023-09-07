@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset,DataLoader
 from utils import split_data
 
@@ -84,6 +85,7 @@ class SharpsDataModule(pl.LightningDataModule):
             features = []
         self.features = features
         self.maxval = maxval
+        self.feat_scaler = StandardScaler()
 
         # define data transforms - augmentation for training
         self.training_transform = transforms.Compose([
@@ -110,14 +112,22 @@ class SharpsDataModule(pl.LightningDataModule):
     def setup(self,stage:str):
         # split into training and validation the same as for forecasting
         df_test,df_pseudotest,self.df_train,df_val = split_data(self.df,self.val_split,self.test)
+
         # use training+val together and pseudotest as validation
         self.df_train = pd.concat([self.df_train,df_val])
+
+        # scale features
+        self.df_train[self.features] = self.feat_scaler.fit_transform(self.df_train[self.features])
+        df_pseudotest[self.features] = self.feat_scaler.transform(df_pseudotest[self.features])
+        df_test[self.features] = self.feat_scaler.fit_transform(df_test[self.features])
+
         self.train_set = SharpsDataset(self.df_train,self.training_transform,self.features,maxval=self.maxval)
         self.val_set = SharpsDataset(df_pseudotest,self.transform,maxval=self.maxval)
         self.test_set = SharpsDataset(df_test,self.transform,self.features,maxval=self.maxval)
         print('Train:',len(self.train_set),
               'Valid:',len(self.val_set),
               'Test:',len(self.test_set))
+
         
     def subsample_trainset(self,filenames):
         # given a list of filenames, subsample so the train set only includes files from that list
