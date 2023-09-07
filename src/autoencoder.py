@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
+import random
 import seaborn as sns
 import torch
 import torch.nn as nn
@@ -13,6 +14,8 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from tqdm.notebook import tqdm
 from dataset import SHARPdataset
+from utils import plot_reconstruction
+import wandb
 
 # Setting the seed
 pl.seed_everything(42)
@@ -104,15 +107,18 @@ class SharpEmbedder(pl.LightningModule):
         encoder_class: object = Encoder,
         decoder_class: object = Decoder,
         num_input_channels: int = 3,
-        image_size: int = 256
+        image_size: int = 256,
+        wandb_logger: bool = True
     ):
         super().__init__()
+        self.latent_dim = latent_dim
         # Saving hyperparameters of autoencoder
         self.save_hyperparameters()
         # Creating encoder and decoder
         self.encoder = encoder_class(num_input_channels, base_channel_size, latent_dim, image_size=image_size)
         self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim, image_size=image_size)
         # Example input array needed for visualizing the graph of the network
+        self.wandb_logger = wandb_logger
 
     def forward(self, x):
         """The forward function takes in an image and returns the reconstructed image."""
@@ -126,7 +132,8 @@ class SharpEmbedder(pl.LightningModule):
         x_hat = self.forward(x)
         loss = F.mse_loss(x, x_hat, reduction="none")
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
-        return loss
+        totusflux_err = torch.abs(x_hat[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])-torch.abs(x[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])
+        return loss,totusflux_err
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
@@ -136,18 +143,32 @@ class SharpEmbedder(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
 
     def training_step(self, batch, batch_idx):
-        loss = self._get_reconstruction_loss(batch)
+        loss,totusflux_err = self._get_reconstruction_loss(batch)
         self.log("train_loss", loss)
+        self.log("train_totusflux_err", totusflux_err)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self._get_reconstruction_loss(batch)
+        loss,totusflux_err = self._get_reconstruction_loss(batch)
         self.log("val_loss", loss)
+        self.log("val_totusflux_err", totusflux_err)
+        # log sample reconstruction
+        if batch_idx == 0 & self.wandb_logger:
+            files,x,_ = batch
+            idx = -1
+            x_hat = self.forward(x)
+            fig = plot_reconstruction(x[idx].detach().cpu().numpy(),
+                                      x_hat[idx].detach().cpu().numpy(),
+                                      self.latent_dim,
+                                      files[idx])
+            wandb.log({'sample_validation_img':fig})
 
     def test_step(self, batch, batch_idx):
-        loss = self._get_reconstruction_loss(batch)
+        loss,totusflux_err = self._get_reconstruction_loss(batch)
         self.log("test_loss", loss)
-    
+        self.log("test_totusflux_err", totusflux_err)
+
     def predict_step(self,batch,batch_idx,dataloader_idx=0):
         """Given a batch of images, return embeddings from encoder"""
         f,x,_ = batch
