@@ -14,9 +14,9 @@ import torchmetrics
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from tqdm.notebook import tqdm
-from src.dataset import SHARPdataset
-from src.utils import plot_reconstruction
-from src.losses import ContractiveLoss
+from dataset import SHARPdataset
+from utils import plot_reconstruction
+
 import wandb
 
 # Setting the seed
@@ -188,7 +188,7 @@ class SharpEmbedder(pl.LightningModule):
         # log sample reconstruction
         if batch_idx == 0 & self.wandb_logger:
             idx = -1
-            x_hat = self.forward(x)
+            _,x_hat = self.forward(x)
             fig = plot_reconstruction(x[idx].detach().cpu().numpy(),
                                       x_hat[idx].detach().cpu().numpy(),
                                       self.latent_dim,

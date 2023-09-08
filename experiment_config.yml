@@ -31,20 +31,21 @@ meta:
   resume: false
   tags: []
   id: None
-  name: latent-100-frac01
-  group: arch-exploration
+  name: latent-20
+  group: constrain-embeddings
 model:
   base_channel_size: 16
   channels: 4
   checkpoint_location: None
   load_checkpoint: false
-  latent_dim: 100
+  latent_dim: 20
+  loss_type: embed+feat
 training:
   batch_size: 256
   epochs: 12
   iterations: 1
   train_frac: 1
-  lambd: 0.1f
+  lambd: 0.1
 flareforecast:
   window: 24
   flare_thresh: 0.00001
