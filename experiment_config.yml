@@ -41,9 +41,10 @@ model:
   latent_dim: 100
 training:
   batch_size: 256
-  epochs: 10
-  iterations: 10
-  train_frac: 0.1
+  epochs: 12
+  iterations: 1
+  train_frac: 1
+  lambd: 0.1f
 flareforecast:
   window: 24
   flare_thresh: 0.00001

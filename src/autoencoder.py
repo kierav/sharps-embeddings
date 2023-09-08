@@ -10,6 +10,7 @@ import torch.utils.data as data
 import torchvision
 from IPython.display import set_matplotlib_formats
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+import torchmetrics
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from tqdm.notebook import tqdm
@@ -110,7 +111,8 @@ class SharpEmbedder(pl.LightningModule):
         num_input_channels: int = 3,
         image_size: int = 256,
         wandb_logger: bool = True,
-        loss_type: str = 'mse'
+        loss_type: str = 'mse',
+        lambd: float = 1e-3
     ):
         super().__init__()
         self.latent_dim = latent_dim
@@ -123,34 +125,34 @@ class SharpEmbedder(pl.LightningModule):
         self.wandb_logger = wandb_logger
         self.loss_type = loss_type
 
+        # define metrics
+        self.val_r2 = torchmetrics.R2Score()
+
     def forward(self, x):
         """The forward function takes in an image and returns the reconstructed image."""
         z = self.encoder(x)
         x_hat = self.decoder(z)
         return z,x_hat
 
-    def _get_reconstruction_loss(self, batch):
+    def _get_reconstruction_loss(self, x, f, x_hat, z):
         """Given a batch of images, this function returns the reconstruction loss (MSE in our case)"""
-        _,x,f = batch  # We do not need the labels
-        z,x_hat = self.forward(x)
+
         loss1 = F.mse_loss(x, x_hat, reduction="none")
         loss1 = loss1.sum(dim=[1, 2, 3]).mean(dim=[0])
 
         # calculate loss between latent dim and features
-        loss2 = F.mse_loss(f,z[:,:len(f)],reduction='none')
+        loss2 = F.mse_loss(f,z[:,:f.shape[1]],reduction='none')
         loss2 = loss2.sum(dim=[1]).mean(dim=[0])
 
         # return loss
         if self.loss_type == 'mse':
             loss = loss1
         elif self.loss_type == 'embed+feat':
-            loss = loss1 + loss2
+            loss = loss1 + self.lambd*loss2
         else:
             loss = loss1
-        
-        totusflux_err = torch.abs(x_hat[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])-torch.abs(x[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])
 
-        return loss,totusflux_err
+        return loss,loss1,loss2
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
@@ -160,19 +162,31 @@ class SharpEmbedder(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
 
     def training_step(self, batch, batch_idx):
-        loss,totusflux_err = self._get_reconstruction_loss(batch)
-        self.log("train_loss", loss)
-        self.log("train_totusflux_err", totusflux_err)
+        _,x,f = batch  # We do not need the labels
+        z,x_hat = self.forward(x)
+        loss,loss1,loss2 = self._get_reconstruction_loss(x,f,x_hat,z)
+
+        self.log_dict({"train_loss":loss,
+                       'train_reconstruction_loss':loss1,
+                       'train_sharps_loss':loss2})
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss,totusflux_err = self._get_reconstruction_loss(batch)
-        self.log("val_loss", loss)
-        self.log("val_totusflux_err", totusflux_err)
+        files,x,f = batch 
+        z,x_hat = self.forward(x)
+        loss,loss1,loss2 = self._get_reconstruction_loss(x,f,x_hat,z)
+
+        totusflux_err = torch.abs(x_hat[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])-torch.abs(x[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])
+        self.val_r2(f,z[:,:f.shape[1]])
+
+        self.log_dict({"val_loss":loss,
+                       'val_reconstruction_loss':loss1,
+                       'val_sharps_loss':loss2,
+                       'val_totusflux_err':totusflux_err,
+                       'val_sharps_r2':self.val_r2})
         # log sample reconstruction
         if batch_idx == 0 & self.wandb_logger:
-            files,x,_ = batch
             idx = -1
             x_hat = self.forward(x)
             fig = plot_reconstruction(x[idx].detach().cpu().numpy(),
