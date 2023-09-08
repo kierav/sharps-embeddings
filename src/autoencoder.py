@@ -137,7 +137,7 @@ class SharpEmbedder(pl.LightningModule):
         loss1 = loss1.sum(dim=[1, 2, 3]).mean(dim=[0])
 
         # calculate loss between latent dim and features
-        loss2 = F.mse_loss(f,z[:,:len(f)],reduction='none')
+        loss2 = F.mse_loss(f,z[:,:f.shape[1]],reduction='none')
         loss2 = loss2.sum(dim=[1]).mean(dim=[0])
 
         # return loss
