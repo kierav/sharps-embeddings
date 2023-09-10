@@ -124,9 +124,9 @@ class SharpEmbedder(pl.LightningModule):
         # Example input array needed for visualizing the graph of the network
         self.wandb_logger = wandb_logger
         self.loss_type = loss_type
-
+        self.lambd = lambd
         # define metrics
-        self.val_r2 = torchmetrics.R2Score()
+        self.val_r2 = torchmetrics.R2Score(num_outputs=20)
 
     def forward(self, x):
         """The forward function takes in an image and returns the reconstructed image."""
@@ -176,9 +176,9 @@ class SharpEmbedder(pl.LightningModule):
         files,x,f = batch 
         z,x_hat = self.forward(x)
         loss,loss1,loss2 = self._get_reconstruction_loss(x,f,x_hat,z)
-
+        
         totusflux_err = torch.abs(x_hat[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])-torch.abs(x[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])
-        self.val_r2(f,z[:,:f.shape[1]])
+        self.val_r2(z[:,:f.shape[1]],f.view(f.shape[0],-1))
 
         self.log_dict({"val_loss":loss,
                        'val_reconstruction_loss':loss1,
