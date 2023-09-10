@@ -58,7 +58,9 @@ def main():
                           encoder_class = Encoder,
                           decoder_class = Decoder,
                           num_input_channels = 4,
-                          image_size=config.data['dim'])
+                          image_size=config.data['dim'],
+                          lambda1=config.model['lambda1'],
+                          lambda2=config.model['lambda2'])
     
     # initialize wandb logger
     wandb_logger = WandbLogger(log_model='all')

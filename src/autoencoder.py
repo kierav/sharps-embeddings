@@ -1,19 +1,10 @@
-import matplotlib.pyplot as plt
 import pytorch_lightning as pl
-import random
-import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import torch.utils.data as data
-import torchvision
-from IPython.display import set_matplotlib_formats
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from torchvision import transforms
-from torchvision.datasets import CIFAR10
-from tqdm.notebook import tqdm
 from dataset import SHARPdataset
+from losses import gradient_loss
 from utils import plot_reconstruction
 import wandb
 
@@ -108,7 +99,9 @@ class SharpEmbedder(pl.LightningModule):
         decoder_class: object = Decoder,
         num_input_channels: int = 3,
         image_size: int = 256,
-        wandb_logger: bool = True
+        wandb_logger: bool = True,
+        lambda1:float = 1,
+        lambda2:float = 0,
     ):
         super().__init__()
         self.latent_dim = latent_dim
@@ -119,6 +112,8 @@ class SharpEmbedder(pl.LightningModule):
         self.decoder = decoder_class(num_input_channels, base_channel_size, latent_dim, image_size=image_size)
         # Example input array needed for visualizing the graph of the network
         self.wandb_logger = wandb_logger
+        self.lambda1 = lambda1
+        self.lambda2 = lambda2
 
     def forward(self, x):
         """The forward function takes in an image and returns the reconstructed image."""
@@ -130,8 +125,10 @@ class SharpEmbedder(pl.LightningModule):
         """Given a batch of images, this function returns the reconstruction loss (MSE in our case)"""
         _,x,_ = batch  # We do not need the labels
         x_hat = self.forward(x)
-        loss = F.mse_loss(x, x_hat, reduction="none")
-        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        loss1 = F.mse_loss(x, x_hat, reduction="none")
+        loss1 = loss1.sum(dim=[1, 2, 3]).mean(dim=[0])
+        loss2 = gradient_loss(x,x_hat)
+        loss = self.lambda1*loss1+self.lambda2*loss2
         totusflux_err = torch.abs(x_hat[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])-torch.abs(x[:,3,:,:]).sum(dim=[1,2]).mean(dim=[0])
         return loss,totusflux_err
 
