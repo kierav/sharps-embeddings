@@ -114,6 +114,7 @@ def main():
     window = config.flareforecast['window']
     flare_thresh = config.flareforecast['flare_thresh']
     feats = ['embed'+str(i) for i in range(config.model['latent_dim'])] 
+    feats.extend(['naxis1','naxis2'])
     train_frac = config.flareforecast['train_frac']
 
     results = {}

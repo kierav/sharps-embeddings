@@ -53,7 +53,7 @@ class LinearModel():
     def train(self):
         self.model.fit(self.X_train,self.y_train)
 
-    def test(self,X,y):
+    def test(self,X,y=None):
         ypred = self.model.predict_proba(X)
         return ypred[:,1]
         
