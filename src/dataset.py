@@ -52,7 +52,8 @@ class SHARPdataset(Dataset):
         file = h5py.File(self.sharp_images[idx])
         key = list(file.keys())[0]
         data = np.array(file[key])
-        data = (np.clip(data, -5000, 5000)/5000 + 1)/2
+        data = (np.clip(data, -1000, 1000)/1000 + 1)/2
+        data = np.nan_to_num(data, copy=False, nan=0.5, posinf=1, neginf=0)
         data = data[None, :, :, :]
         data = torch.from_numpy(data.astype(self.datatype))
         resize = torchvision.transforms.Resize((self.image_size, self.image_size))
@@ -61,4 +62,4 @@ class SHARPdataset(Dataset):
         if self.param is True:
             return ('SHARP_PARAMS [idx]', data)
         else:
-            return data
+            return data[0,:,:,:], self.sharp_images[idx]
