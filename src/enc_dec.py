@@ -158,3 +158,58 @@ class ResNet18Dec(nn.Module):
         x = torch.sigmoid(self.conv1(x))
         x = x.view(x.size(0), 4, 128, 128)
         return x
+    
+    
+class SimEnc(nn.Module):
+    
+    def __init__(self,latent_dim=20):
+        super().__init__()
+        self.conv_block1 = nn.Sequential(nn.Conv2d(4, 32, kernel_size=3, stride=2),
+                                         nn.ReLU())
+        self.conv_block2 = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, stride=2),
+                                         nn.ReLU())
+        self.conv_block3 = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, stride=2),
+                                         nn.ReLU())
+        self.linear = nn.Sequential(nn.Linear(14400, latent_dim),
+                                    nn.ReLU())
+        
+    def forward(self, x):
+        x = self.conv_block1(x)
+        x = self.conv_block2(x)
+        x = self.conv_block3(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear(x)
+        return x
+        
+class SimDec(nn.Module):
+    def __init__(self, latent_dim=20, image_size = 128):
+        super().__init__()
+        self.deconv_block1 = nn.Sequential(nn.ConvTranspose2d(64, 64, 3, stride=2),
+                                           nn.ReLU())
+        self.deconv_block2 = nn.Sequential(nn.ConvTranspose2d(64, 32, 3, stride=2),
+                                           nn.ReLU())
+        self.deconv_block3 = nn.Sequential(nn.ConvTranspose2d(32, 4, 3, stride=2),
+                                           nn.ReLU())
+        self.linear = nn.Sequential(nn.Linear(latent_dim, 14400),
+                                    nn.ReLU())
+        self.image_size = image_size
+        
+    
+    def forward(self, x):
+        x = self.linear(x)
+        x = x.view(x.size(0),64,15,15)
+        x = self.deconv_block1(x)
+        x = self.deconv_block2(x)
+        x = F.pad(x,(0, 1, 0, 1, 0, 0, 0, 0))
+        x = self.deconv_block3(x)   
+        x = x[:,:,:self.image_size,:self.image_size]    
+        return x
+
+
+if __name__=='__main__':
+    x = torch.zeros((10,4,128,128))
+    e = SimEnc(latent_dim=20)
+    x1 = e(x)
+    d = SimDec(latent_dim=20)
+    x2 = d(x1)
+    print(x1.shape,x2.shape)
