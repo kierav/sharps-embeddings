@@ -8,7 +8,7 @@ import pandas as pd
 
 class SHARPdataset(Dataset):
 
-    def __init__(self, data_path: str, param: bin=False,
+    def __init__(self, data_path: str, include_sharp: bin=False,
                  data_stride:int = 1, image_size = 256,
                  datatype=np.float32,
                  crop:bool = False):
@@ -25,20 +25,38 @@ class SHARPdataset(Dataset):
         self.data_path = data_path
         self.image_size = image_size
         self.crop = crop
-        if self.crop:
-            df = pd.read_csv('/d0/kvandersande/index_sharps.csv')
-            df_ = df[df['naxis1']>self.image_size][df['naxis2']>self.image_size]
-            self.sharp_images = list(df_['file'])
+        df = pd.read_csv('/d0/kvandersande/index_sharps.csv')
+        if self.crop: 
+            df = df[df['naxis1']>self.image_size][df['naxis2']>self.image_size]
+            self.sharp_images = list(df['file'])
         else:
-            self.sharp_images = glob.glob(data_path + "/*.h5")
+            self.sharp_images = list(df['file'])
+            #self.sharp_images = glob.glob(data_path + "/*.h5")
         if data_stride>1:
             self.sharp_images = self.sharp_images[::data_stride]
         
-        self.param = param
+        self.include_sharp = include_sharp
         self.datatype = datatype
         
-        if self.param is True:
-            'read the csv of SHARP params'
+        if self.include_sharp:
+            self.sharp_params = ['usflux', 'meangam',
+                    'meangbt', 'meangbz', 
+                    'meangbh', 'meanjzd', 
+                    'meanjzh', 'totusjz',
+                    'totusjh', 'meanalp', 
+                    'absnjzh', 'savncpp',
+                    'meanpot', 'totpot', 
+                    'meanshr', 'shrgt45',
+                    'r_value', 'size',
+                    'area', 'nacr',
+                    'size_acr', 'area_acr',
+                    'mtot', 'mnet',
+                    'mpos_tot', 'mneg_tot',
+                    'mmean', 'mstdev', 'mskew']
+            self.sharp_data = df[self.sharp_params]
+            self.sharp_data.fillna(0, inplace=True)
+            self.p_max = list(self.sharp_data.max())
+            self.sharp_data = (self.sharp_data - self.sharp_data.min())/(self.sharp_data.max() - self.sharp_data.min())
 
     def __len__(self):
         '''
@@ -78,7 +96,10 @@ class SHARPdataset(Dataset):
             resize = torchvision.transforms.Resize((self.image_size, self.image_size))
             data = resize(data)
         
-        if self.param is True:
-            return ('SHARP_PARAMS [idx]', data)
+        if self.include_sharp:
+            params = np.array(list(self.sharp_data.iloc[idx]))
+            # params = np.array([params[i]/self.p_max[i] for i in range(len(self.sharp_params))])
+            params = torch.from_numpy(params.astype(self.datatype))
+            return data[0,:,:,:], params, self.sharp_images[idx]
         else:
             return data[0,:,:,:], self.sharp_images[idx]
